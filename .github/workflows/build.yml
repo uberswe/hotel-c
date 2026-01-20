@@ -34,4 +34,4 @@ jobs:
         with:
           name: hotel-c
           path: build/libs/*.jar
-          retention-days: 7
+          retention-days: 400  # Maximum allowed; release artifacts are permanent
