@@ -60,12 +60,6 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-      - name: Rename JAR file
-        env:
-          VERSION: ${{ steps.version.outputs.VERSION }}
-        run: |
-          mv build/libs/hotel-c-*.jar "build/libs/hotel-c-${VERSION}.jar"
-
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
