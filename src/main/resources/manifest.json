@@ -1,0 +1,18 @@
+{
+  "Name": "HotelC",
+  "Group": "uberswe",
+  "Version": "1.0.0",
+  "Description": "HOTEL C - Hytale OTEL Collector. OpenTelemetry metrics and tracing collector for Hytale servers. Collects player activity, block events, world events, and server performance metrics and exports them via OTLP.",
+  "Main": "com.uberswe.hytale.otel.OpenTelemetryPlugin",
+  "Authors": [
+    {
+      "name": "uberswe",
+      "website": "https://uberswe.com"
+    }
+  ],
+  "Website": "https://github.com/uberswe/hotel-c",
+  "ServerVersion": ">=1.0.0",
+  "Dependencies": [],
+  "OptionalDependencies": [],
+  "DisabledByDefault": false
+}

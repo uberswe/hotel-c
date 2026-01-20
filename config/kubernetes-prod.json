@@ -1,0 +1,50 @@
+{
+  "enabled": true,
+  "serviceName": "hytale-server",
+  "serviceNamespace": "hytale",
+  "serviceVersion": "1.0.0",
+  "otlp": {
+    "endpoint": "http://opentelemetry-collector.monitoring.svc.cluster.local:4317",
+    "protocol": "grpc",
+    "headers": {},
+    "timeout": 10000,
+    "compression": "gzip"
+  },
+  "metrics": {
+    "enabled": true,
+    "exportIntervalMs": 30000,
+    "playerMetrics": {
+      "enabled": true,
+      "trackConnections": true,
+      "trackSessions": true
+    },
+    "blockMetrics": {
+      "enabled": true,
+      "trackPlacement": true,
+      "trackBreaking": true,
+      "trackInteractions": true
+    },
+    "worldMetrics": {
+      "enabled": true,
+      "trackWorldLoading": true,
+      "trackChunkLoading": false
+    },
+    "serverMetrics": {
+      "enabled": true,
+      "trackTps": true,
+      "trackMemory": true,
+      "trackUptime": true
+    }
+  },
+  "tracing": {
+    "enabled": true,
+    "sampleRate": 1.0,
+    "tracePlayerSessions": true,
+    "traceBlockOperations": false
+  },
+  "attributes": {
+    "environment": "production",
+    "cluster": "k3s-cluster",
+    "namespace": "hytale-server-prod"
+  }
+}
