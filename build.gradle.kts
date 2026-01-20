@@ -7,17 +7,12 @@ group = "com.uberswe.hytale"
 version = "1.0.0"
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_25
-    targetCompatibility = JavaVersion.VERSION_25
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 repositories {
     mavenCentral()
-    // Hytale server API - use local maven repo or file dependency
-    // In production, this would be published to a repository
-    flatDir {
-        dirs("libs")
-    }
 }
 
 val otelVersion = "1.44.1"
@@ -25,7 +20,7 @@ val otelInstrumentationVersion = "2.10.0"
 
 dependencies {
     // Hytale Server API - provided at runtime by the server
-    compileOnly(files("libs/hytale-server-api.jar"))
+    compileOnly(files("../hytaleServer/server-files/Server/HytaleServer.jar"))
 
     // OpenTelemetry API
     implementation("io.opentelemetry:opentelemetry-api:$otelVersion")
@@ -35,6 +30,9 @@ dependencies {
 
     // OTLP Exporters
     implementation("io.opentelemetry:opentelemetry-exporter-otlp:$otelVersion")
+
+    // HTTP sender for OTLP exporter (JDK built-in HTTP client)
+    implementation("io.opentelemetry:opentelemetry-exporter-sender-jdk:$otelVersion")
 
     // OpenTelemetry Semantic Conventions
     implementation("io.opentelemetry.semconv:opentelemetry-semconv:1.28.0-alpha")
@@ -51,7 +49,6 @@ dependencies {
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
-    options.compilerArgs.add("--enable-preview")
 }
 
 tasks.jar {
@@ -66,13 +63,16 @@ tasks.jar {
 tasks.shadowJar {
     archiveClassifier.set("")
 
+    // Merge service files for service loader
+    mergeServiceFiles()
+
     // Relocate OpenTelemetry to avoid conflicts with other plugins
     relocate("io.opentelemetry", "com.uberswe.hytale.otel.shaded.otel")
     relocate("io.grpc", "com.uberswe.hytale.otel.shaded.grpc")
     relocate("com.google.gson", "com.uberswe.hytale.otel.shaded.gson")
     relocate("org.slf4j", "com.uberswe.hytale.otel.shaded.slf4j")
 
-    // Minimize jar size
+    // Minimize jar size but keep necessary classes
     minimize {
         exclude(dependency("io.opentelemetry:.*"))
     }

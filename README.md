@@ -68,7 +68,7 @@ All metrics include relevant attributes:
 
 ## 📋 Requirements
 
-- ☕ Java 25
+- ☕ Java 21
 - 🐘 Gradle 9.2.0 (for building)
 - 🎮 Hytale Server
 
@@ -225,17 +225,12 @@ hotel-c/
 ├── 📁 .github/workflows/     # CI/CD workflows
 ├── 📁 dashboards/            # Grafana dashboards
 ├── 📁 config/                # Sample configurations
-├── 📁 src/main/java/com/gearworks/hytale/otel/
-│   ├── 📄 OpenTelemetryPlugin.java     # Main plugin class
+├── 📁 src/main/java/com/uberswe/hytale/otel/
+│   ├── 📄 OpenTelemetryPlugin.java     # Main plugin class with event handlers
 │   ├── 📁 config/
 │   │   └── 📄 PluginConfig.java        # Configuration classes
-│   ├── 📁 telemetry/
-│   │   └── 📄 TelemetryManager.java    # OpenTelemetry SDK setup
-│   └── 📁 listeners/
-│       ├── 📄 PlayerEventListener.java  # Player events
-│       ├── 📄 BlockEventListener.java   # Block events
-│       ├── 📄 WorldEventListener.java   # World events
-│       └── 📄 ServerEventListener.java  # Server events
+│   └── 📁 telemetry/
+│       └── 📄 TelemetryManager.java    # OpenTelemetry SDK setup
 └── 📁 src/main/resources/
     ├── 📄 manifest.json                 # Plugin manifest
     └── 📄 config.json                   # Default configuration

@@ -1,15 +1,29 @@
 package com.uberswe.hytale.otel;
 
 import com.uberswe.hytale.otel.config.PluginConfig;
-import com.uberswe.hytale.otel.listeners.BlockEventListener;
-import com.uberswe.hytale.otel.listeners.PlayerEventListener;
-import com.uberswe.hytale.otel.listeners.ServerEventListener;
-import com.uberswe.hytale.otel.listeners.WorldEventListener;
+import com.uberswe.hytale.otel.ecs.BlockBreakEventSystem;
+import com.uberswe.hytale.otel.ecs.BlockPlaceEventSystem;
+import com.uberswe.hytale.otel.ecs.BlockUseEventSystem;
 import com.uberswe.hytale.otel.telemetry.TelemetryManager;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.hypixel.hytale.event.EventPriority;
+import com.hypixel.hytale.logger.HytaleLogger;
+import com.hypixel.hytale.server.core.event.events.BootEvent;
+import com.hypixel.hytale.server.core.event.events.ShutdownEvent;
+import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
+import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
+import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.events.AddWorldEvent;
+import com.hypixel.hytale.server.core.universe.world.events.RemoveWorldEvent;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.StatusCode;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -19,48 +33,46 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Logger;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * OpenTelemetry Collector Plugin for Hytale servers.
+ * HOTEL C - Hytale OpenTelemetry Collector Plugin.
  *
  * Collects metrics and traces from the server and exports them via OTLP
  * to an OpenTelemetry Collector or compatible backend (Grafana, Jaeger, etc.).
- *
- * Features:
- * - Player activity metrics (connections, disconnections, session tracking)
- * - Block interaction metrics (placement, breaking, usage)
- * - World events (loading, unloading)
- * - Server performance metrics (memory, uptime)
- * - Distributed tracing for player sessions
  */
 public class OpenTelemetryPlugin extends JavaPlugin {
     private static final String CONFIG_FILE = "config.json";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
+    private static final AttributeKey<String> PLAYER_UUID = AttributeKey.stringKey("player.uuid");
+    private static final AttributeKey<String> PLAYER_NAME = AttributeKey.stringKey("player.name");
+    private static final AttributeKey<String> WORLD_NAME = AttributeKey.stringKey("world.name");
+
     private PluginConfig config;
     private TelemetryManager telemetryManager;
-    private PlayerEventListener playerEventListener;
-    private BlockEventListener blockEventListener;
-    private WorldEventListener worldEventListener;
-    private ServerEventListener serverEventListener;
+    private HytaleLogger logger;
 
-    /**
-     * Required constructor for Hytale plugins.
-     * The server uses reflection to instantiate plugins with JavaPluginInit.
-     */
+    // Track player sessions for tracing
+    private final Map<UUID, Span> playerSessionSpans = new ConcurrentHashMap<>();
+
+    // Server lifecycle tracking
+    private Span serverLifecycleSpan;
+    private long bootTime;
+
     public OpenTelemetryPlugin(@Nonnull JavaPluginInit init) {
         super(init);
     }
 
     @Override
-    protected CompletableFuture<Void> preLoad() {
+    public CompletableFuture<Void> preLoad() {
         return CompletableFuture.runAsync(() -> {
             try {
                 loadConfiguration();
             } catch (Exception e) {
-                getLogger().severe("Failed to load configuration: " + e.getMessage());
                 throw new RuntimeException("Configuration loading failed", e);
             }
         });
@@ -68,24 +80,25 @@ public class OpenTelemetryPlugin extends JavaPlugin {
 
     @Override
     protected void setup() {
-        Logger logger = getLogger();
+        // Get logger after plugin is initialized
+        logger = getLogger();
 
         if (!config.isEnabled()) {
-            logger.info("OpenTelemetry plugin is disabled in configuration");
+            logger.atInfo().log("HOTEL C plugin is disabled in configuration");
             return;
         }
 
-        logger.info("Setting up OpenTelemetry plugin...");
+        logger.atInfo().log("Setting up HOTEL C plugin...");
 
         // Initialize telemetry manager
         telemetryManager = new TelemetryManager(logger, config);
         telemetryManager.initialize();
 
         // Register event listeners
-        registerEventListeners(logger);
+        registerEventListeners();
 
-        logger.info("OpenTelemetry plugin setup complete");
-        logger.info("Exporting to: " + config.getOtlp().getEndpoint());
+        logger.atInfo().log("HOTEL C plugin setup complete");
+        logger.atInfo().log("Exporting to: %s", config.getOtlp().getEndpoint());
     }
 
     @Override
@@ -94,19 +107,29 @@ public class OpenTelemetryPlugin extends JavaPlugin {
             return;
         }
 
-        getLogger().info("OpenTelemetry plugin started");
-        getLogger().info("Service: " + config.getServiceNamespace() + "/" + config.getServiceName());
-        getLogger().info("Metrics enabled: " + config.getMetrics().isEnabled());
-        getLogger().info("Tracing enabled: " + config.getTracing().isEnabled());
+        logger.atInfo().log("HOTEL C plugin started");
+        logger.atInfo().log("Service: %s/%s", config.getServiceNamespace(), config.getServiceName());
+        logger.atInfo().log("Metrics enabled: %s", config.getMetrics().isEnabled());
+        logger.atInfo().log("Tracing enabled: %s", config.getTracing().isEnabled());
     }
 
     @Override
     protected void shutdown() {
-        getLogger().info("Shutting down OpenTelemetry plugin...");
+        if (logger != null) {
+            logger.atInfo().log("Shutting down HOTEL C plugin...");
+        }
 
-        // Cleanup event listeners
-        if (playerEventListener != null) {
-            playerEventListener.shutdown();
+        // End any active player session spans
+        for (Span span : playerSessionSpans.values()) {
+            span.setStatus(StatusCode.OK, "Server shutdown");
+            span.end();
+        }
+        playerSessionSpans.clear();
+
+        // End server lifecycle span
+        if (serverLifecycleSpan != null) {
+            serverLifecycleSpan.setStatus(StatusCode.OK);
+            serverLifecycleSpan.end();
         }
 
         // Shutdown telemetry manager (flushes pending data)
@@ -114,20 +137,19 @@ public class OpenTelemetryPlugin extends JavaPlugin {
             telemetryManager.shutdown();
         }
 
-        getLogger().info("OpenTelemetry plugin shutdown complete");
+        if (logger != null) {
+            logger.atInfo().log("HOTEL C plugin shutdown complete");
+        }
     }
 
     private void loadConfiguration() throws IOException {
         Path configPath = getDataDirectory().resolve(CONFIG_FILE);
 
         if (Files.exists(configPath)) {
-            // Load existing configuration
             try (Reader reader = Files.newBufferedReader(configPath, StandardCharsets.UTF_8)) {
                 config = GSON.fromJson(reader, PluginConfig.class);
-                getLogger().info("Loaded configuration from " + configPath);
             }
         } else {
-            // Create default configuration from resources
             try (InputStream is = getClass().getClassLoader().getResourceAsStream(CONFIG_FILE)) {
                 if (is != null) {
                     try (Reader reader = new InputStreamReader(is, StandardCharsets.UTF_8)) {
@@ -138,71 +160,221 @@ public class OpenTelemetryPlugin extends JavaPlugin {
                 }
             }
 
-            // Save default configuration
             Files.createDirectories(configPath.getParent());
             Files.writeString(configPath, GSON.toJson(config), StandardCharsets.UTF_8);
-            getLogger().info("Created default configuration at " + configPath);
         }
 
-        // Override endpoint from environment variable if set
+        // Override from environment variables
         String envEndpoint = System.getenv("OTEL_EXPORTER_OTLP_ENDPOINT");
         if (envEndpoint != null && !envEndpoint.isBlank()) {
             config.getOtlp().setEndpoint(envEndpoint);
-            getLogger().info("Using OTLP endpoint from environment: " + envEndpoint);
         }
 
-        // Override service name from environment variable if set
         String envServiceName = System.getenv("OTEL_SERVICE_NAME");
         if (envServiceName != null && !envServiceName.isBlank()) {
             config.setServiceName(envServiceName);
-            getLogger().info("Using service name from environment: " + envServiceName);
         }
     }
 
-    private void registerEventListeners(Logger logger) {
+    private void registerEventListeners() {
         var eventRegistry = getEventRegistry();
-
-        // Player events
-        if (config.getMetrics().getPlayerMetrics().isEnabled()) {
-            playerEventListener = new PlayerEventListener(logger, telemetryManager, config);
-            eventRegistry.register(this, playerEventListener);
-            logger.info("Registered player event listener");
-        }
-
-        // Block events
-        if (config.getMetrics().getBlockMetrics().isEnabled()) {
-            blockEventListener = new BlockEventListener(logger, telemetryManager, config);
-            eventRegistry.register(this, blockEventListener);
-            logger.info("Registered block event listener");
-        }
-
-        // World events
-        if (config.getMetrics().getWorldMetrics().isEnabled()) {
-            worldEventListener = new WorldEventListener(logger, telemetryManager, config);
-            eventRegistry.register(this, worldEventListener);
-            logger.info("Registered world event listener");
-        }
 
         // Server events
         if (config.getMetrics().getServerMetrics().isEnabled()) {
-            serverEventListener = new ServerEventListener(logger, telemetryManager, config);
-            eventRegistry.register(this, serverEventListener);
-            logger.info("Registered server event listener");
+            eventRegistry.register(EventPriority.NORMAL, BootEvent.class, this::onServerBoot);
+            eventRegistry.register(EventPriority.NORMAL, ShutdownEvent.class, this::onServerShutdown);
+            logger.atInfo().log("Registered server event listeners");
+        }
+
+        // Player events
+        if (config.getMetrics().getPlayerMetrics().isEnabled()) {
+            eventRegistry.register(EventPriority.NORMAL, PlayerConnectEvent.class, this::onPlayerConnect);
+            eventRegistry.register(EventPriority.NORMAL, PlayerDisconnectEvent.class, this::onPlayerDisconnect);
+            logger.atInfo().log("Registered player event listeners");
+        }
+
+        // World events - use registerGlobal for keyed events to listen across all worlds
+        if (config.getMetrics().getWorldMetrics().isEnabled()) {
+            eventRegistry.registerGlobal(EventPriority.NORMAL, AddWorldEvent.class, this::onWorldAdd);
+            eventRegistry.registerGlobal(EventPriority.NORMAL, RemoveWorldEvent.class, this::onWorldRemove);
+            logger.atInfo().log("Registered world event listeners");
+        }
+
+        // PlayerReadyEvent - fired when player is fully loaded and ready (keyed event)
+        if (config.getMetrics().getPlayerMetrics().isEnabled()) {
+            eventRegistry.registerGlobal(EventPriority.NORMAL, PlayerReadyEvent.class, this::onPlayerReady);
+            logger.atInfo().log("Registered PlayerReadyEvent listener");
+        }
+
+        // Block events - ECS event systems registered with the entity store
+        if (config.getMetrics().getBlockMetrics().isEnabled()) {
+            var entityStoreRegistry = getEntityStoreRegistry();
+
+            if (config.getMetrics().getBlockMetrics().isTrackPlacement()) {
+                entityStoreRegistry.registerSystem(new BlockPlaceEventSystem(telemetryManager));
+                logger.atInfo().log("Registered BlockPlaceEventSystem");
+            }
+
+            if (config.getMetrics().getBlockMetrics().isTrackBreaking()) {
+                entityStoreRegistry.registerSystem(new BlockBreakEventSystem(telemetryManager));
+                logger.atInfo().log("Registered BlockBreakEventSystem");
+            }
+
+            if (config.getMetrics().getBlockMetrics().isTrackInteractions()) {
+                entityStoreRegistry.registerSystem(new BlockUseEventSystem(telemetryManager));
+                logger.atInfo().log("Registered BlockUseEventSystem");
+            }
+
+            logger.atInfo().log("Registered block ECS event systems");
         }
     }
 
-    /**
-     * Get the telemetry manager for external access.
-     * Can be used by other plugins to add custom metrics.
-     */
+    // Server event handlers
+    private void onServerBoot(BootEvent event) {
+        bootTime = System.currentTimeMillis();
+        try {
+            if (config.getTracing().isEnabled()) {
+                serverLifecycleSpan = telemetryManager.getTracer()
+                        .spanBuilder("server.lifecycle")
+                        .setSpanKind(SpanKind.SERVER)
+                        .startSpan();
+                serverLifecycleSpan.addEvent("server.started");
+            }
+            logger.atInfo().log("HOTEL C: Server boot event recorded");
+        } catch (Exception e) {
+            logger.atWarning().withCause(e).log("Failed to record server boot event");
+        }
+    }
+
+    private void onServerShutdown(ShutdownEvent event) {
+        try {
+            long uptime = System.currentTimeMillis() - bootTime;
+            if (serverLifecycleSpan != null) {
+                serverLifecycleSpan.addEvent("server.shutdown",
+                        Attributes.of(AttributeKey.longKey("server.uptime_ms"), uptime));
+            }
+            logger.atInfo().log("HOTEL C: Server shutdown event recorded. Uptime: %ds", uptime / 1000);
+        } catch (Exception e) {
+            logger.atWarning().withCause(e).log("Failed to record server shutdown event");
+        }
+    }
+
+    // Player event handlers
+    private void onPlayerConnect(PlayerConnectEvent event) {
+        try {
+            var player = event.getPlayer();
+            var playerRef = event.getPlayerRef();
+            var attributes = Attributes.builder()
+                    .put(PLAYER_UUID, playerRef.getUuid().toString())
+                    .put(PLAYER_NAME, playerRef.getUsername())
+                    .build();
+
+            telemetryManager.recordPlayerConnect(attributes);
+
+            // Start session span if tracing is enabled
+            if (config.getTracing().isEnabled() && config.getTracing().isTracePlayerSessions()) {
+                Span sessionSpan = telemetryManager.getTracer()
+                        .spanBuilder("player.session")
+                        .setSpanKind(SpanKind.SERVER)
+                        .setAttribute(PLAYER_UUID, playerRef.getUuid().toString())
+                        .setAttribute(PLAYER_NAME, playerRef.getUsername())
+                        .startSpan();
+                playerSessionSpans.put(playerRef.getUuid(), sessionSpan);
+            }
+
+            logger.atFine().log("Recorded player connect: %s", playerRef.getUsername());
+        } catch (Exception e) {
+            logger.atWarning().withCause(e).log("Failed to record player connect event");
+        }
+    }
+
+    private void onPlayerDisconnect(PlayerDisconnectEvent event) {
+        try {
+            // PlayerDisconnectEvent uses PlayerRef, not Player
+            PlayerRef playerRef = event.getPlayerRef();
+            var attributes = Attributes.builder()
+                    .put(PLAYER_UUID, playerRef.getUuid().toString())
+                    .put(PLAYER_NAME, playerRef.getUsername())
+                    .build();
+
+            telemetryManager.recordPlayerDisconnect(attributes);
+
+            // End session span
+            Span sessionSpan = playerSessionSpans.remove(playerRef.getUuid());
+            if (sessionSpan != null) {
+                sessionSpan.setStatus(StatusCode.OK);
+                sessionSpan.end();
+            }
+
+            logger.atFine().log("Recorded player disconnect: %s", playerRef.getUsername());
+        } catch (Exception e) {
+            logger.atWarning().withCause(e).log("Failed to record player disconnect event");
+        }
+    }
+
+    private void onPlayerReady(PlayerReadyEvent event) {
+        try {
+            var player = event.getPlayer();
+            PlayerRef playerRef = player.getPlayerRef();
+            // Add event to the player's session span if tracing
+            Span sessionSpan = playerSessionSpans.get(playerRef.getUuid());
+            if (sessionSpan != null) {
+                sessionSpan.addEvent("player.ready");
+            }
+            logger.atFine().log("Recorded player ready: %s", playerRef.getUsername());
+        } catch (Exception e) {
+            logger.atWarning().withCause(e).log("Failed to record player ready event");
+        }
+    }
+
+    // World event handlers
+    private void onWorldAdd(AddWorldEvent event) {
+        try {
+            var world = event.getWorld();
+            var attributes = Attributes.builder()
+                    .put(WORLD_NAME, world.getName())
+                    .build();
+
+            telemetryManager.recordWorldLoaded(attributes);
+
+            // Add trace event if enabled
+            if (config.getTracing().isEnabled() && serverLifecycleSpan != null) {
+                serverLifecycleSpan.addEvent("world.loaded",
+                        Attributes.of(WORLD_NAME, world.getName()));
+            }
+
+            logger.atFine().log("Recorded world loaded: %s", world.getName());
+        } catch (Exception e) {
+            logger.atWarning().withCause(e).log("Failed to record world add event");
+        }
+    }
+
+    private void onWorldRemove(RemoveWorldEvent event) {
+        try {
+            var world = event.getWorld();
+            var attributes = Attributes.builder()
+                    .put(WORLD_NAME, world.getName())
+                    .build();
+
+            telemetryManager.recordWorldUnloaded(attributes);
+
+            // Add trace event if enabled
+            if (config.getTracing().isEnabled() && serverLifecycleSpan != null) {
+                serverLifecycleSpan.addEvent("world.unloaded",
+                        Attributes.of(WORLD_NAME, world.getName()));
+            }
+
+            logger.atFine().log("Recorded world unloaded: %s", world.getName());
+        } catch (Exception e) {
+            logger.atWarning().withCause(e).log("Failed to record world remove event");
+        }
+    }
+
     public TelemetryManager getTelemetryManager() {
         return telemetryManager;
     }
 
-    /**
-     * Get the current configuration.
-     */
-    public PluginConfig getConfig() {
+    public PluginConfig getPluginConfig() {
         return config;
     }
 }
