@@ -117,13 +117,29 @@ public class TelemetryManager {
         return builder.build();
     }
 
+    /**
+     * Normalize endpoint to ensure it has http:// or https:// prefix.
+     * OpenTelemetry exporters require the protocol prefix.
+     */
+    private String normalizeEndpoint(String endpoint) {
+        if (endpoint == null || endpoint.isBlank()) {
+            return "http://localhost:4317";
+        }
+        if (!endpoint.startsWith("http://") && !endpoint.startsWith("https://")) {
+            return "http://" + endpoint;
+        }
+        return endpoint;
+    }
+
     private SdkMeterProvider buildMeterProvider(Resource resource) {
         MetricExporter metricExporter;
+
+        String endpoint = normalizeEndpoint(config.getOtlp().getEndpoint());
 
         if ("http".equalsIgnoreCase(config.getOtlp().getProtocol())) {
             // Use HTTP/protobuf exporter
             var httpBuilder = OtlpHttpMetricExporter.builder()
-                    .setEndpoint(config.getOtlp().getEndpoint() + "/v1/metrics")
+                    .setEndpoint(endpoint + "/v1/metrics")
                     .setTimeout(config.getOtlp().getTimeout(), TimeUnit.MILLISECONDS);
 
             for (var header : config.getOtlp().getHeaders().entrySet()) {
@@ -138,7 +154,7 @@ public class TelemetryManager {
         } else {
             // Use gRPC exporter (default)
             var grpcBuilder = OtlpGrpcMetricExporter.builder()
-                    .setEndpoint(config.getOtlp().getEndpoint())
+                    .setEndpoint(endpoint)
                     .setTimeout(config.getOtlp().getTimeout(), TimeUnit.MILLISECONDS);
 
             for (var header : config.getOtlp().getHeaders().entrySet()) {
@@ -165,10 +181,12 @@ public class TelemetryManager {
     private SdkTracerProvider buildTracerProvider(Resource resource) {
         io.opentelemetry.sdk.trace.export.SpanExporter spanExporter;
 
+        String endpoint = normalizeEndpoint(config.getOtlp().getEndpoint());
+
         if ("http".equalsIgnoreCase(config.getOtlp().getProtocol())) {
             // Use HTTP/protobuf exporter
             var httpBuilder = OtlpHttpSpanExporter.builder()
-                    .setEndpoint(config.getOtlp().getEndpoint() + "/v1/traces")
+                    .setEndpoint(endpoint + "/v1/traces")
                     .setTimeout(config.getOtlp().getTimeout(), TimeUnit.MILLISECONDS);
 
             for (var header : config.getOtlp().getHeaders().entrySet()) {
@@ -183,7 +201,7 @@ public class TelemetryManager {
         } else {
             // Use gRPC exporter (default)
             var grpcBuilder = OtlpGrpcSpanExporter.builder()
-                    .setEndpoint(config.getOtlp().getEndpoint())
+                    .setEndpoint(endpoint)
                     .setTimeout(config.getOtlp().getTimeout(), TimeUnit.MILLISECONDS);
 
             for (var header : config.getOtlp().getHeaders().entrySet()) {
