@@ -1,9 +1,11 @@
 package com.hypixel.hytale.server.core.universe.world;
 
 /**
- * Stub interface for Hytale World.
+ * Stub class for Hytale World.
  */
-public interface World {
+public class World {
 
-    String getName();
+    public String getName() {
+        throw new UnsupportedOperationException("Stub");
+    }
 }

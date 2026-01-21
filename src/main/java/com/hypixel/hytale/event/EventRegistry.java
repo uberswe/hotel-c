@@ -3,11 +3,15 @@ package com.hypixel.hytale.event;
 import java.util.function.Consumer;
 
 /**
- * Stub interface for Hytale EventRegistry API.
+ * Stub class for Hytale EventRegistry API.
  */
-public interface EventRegistry {
+public class EventRegistry {
 
-    <E> void register(EventPriority priority, Class<E> eventClass, Consumer<E> handler);
+    public <E> void register(EventPriority priority, Class<E> eventClass, Consumer<E> handler) {
+        throw new UnsupportedOperationException("Stub");
+    }
 
-    <E> void registerGlobal(EventPriority priority, Class<E> eventClass, Consumer<E> handler);
+    public <E> void registerGlobal(EventPriority priority, Class<E> eventClass, Consumer<E> handler) {
+        throw new UnsupportedOperationException("Stub");
+    }
 }

@@ -1,7 +1,7 @@
 package com.hypixel.hytale.server.core.event.events.ecs;
 
-import com.hypixel.hytale.server.core.block.Vector3i;
-import com.hypixel.hytale.server.core.item.ItemStack;
+import com.hypixel.hytale.math.vector.Vector3i;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
 
 /**
  * Stub class for Hytale PlaceBlockEvent.

@@ -1,7 +1,7 @@
 package com.hypixel.hytale.server.core.event.events.ecs;
 
-import com.hypixel.hytale.server.core.block.BlockType;
-import com.hypixel.hytale.server.core.block.Vector3i;
+import com.hypixel.hytale.math.vector.Vector3i;
+import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 
 /**
  * Stub class for Hytale BreakBlockEvent.

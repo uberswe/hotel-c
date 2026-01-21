@@ -1,4 +1,4 @@
-package com.hypixel.hytale.server.core.block;
+package com.hypixel.hytale.math.vector;
 
 /**
  * Stub class for Hytale Vector3i.

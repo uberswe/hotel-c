@@ -3,11 +3,15 @@ package com.hypixel.hytale.server.core.universe;
 import java.util.UUID;
 
 /**
- * Stub interface for Hytale PlayerRef.
+ * Stub class for Hytale PlayerRef.
  */
-public interface PlayerRef {
+public class PlayerRef {
 
-    UUID getUuid();
+    public UUID getUuid() {
+        throw new UnsupportedOperationException("Stub");
+    }
 
-    String getUsername();
+    public String getUsername() {
+        throw new UnsupportedOperationException("Stub");
+    }
 }
