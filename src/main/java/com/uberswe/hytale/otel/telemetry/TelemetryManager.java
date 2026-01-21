@@ -25,6 +25,7 @@ import io.opentelemetry.sdk.trace.samplers.Sampler;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 /**
  * Manages OpenTelemetry SDK initialization and provides access to metrics and tracing.
@@ -71,7 +72,7 @@ public class TelemetryManager {
      * Initialize the OpenTelemetry SDK with configured exporters.
      */
     public void initialize() {
-        logger.atInfo().log("Initializing OpenTelemetry with endpoint: %s", config.getOtlp().getEndpoint());
+        logger.at(Level.INFO).log(String.format("Initializing OpenTelemetry with endpoint: %s", config.getOtlp().getEndpoint()));
 
         // Build resource with service information
         Resource resource = Resource.getDefault().toBuilder()
@@ -105,7 +106,7 @@ public class TelemetryManager {
         // Initialize metrics instruments
         initializeMetrics();
 
-        logger.atInfo().log("OpenTelemetry initialized successfully");
+        logger.at(Level.INFO).log("OpenTelemetry initialized successfully");
     }
 
     private Attributes buildCustomAttributes() {
@@ -308,9 +309,9 @@ public class TelemetryManager {
      */
     public void shutdown() {
         if (openTelemetry != null) {
-            logger.atInfo().log("Shutting down OpenTelemetry...");
+            logger.at(Level.INFO).log("Shutting down OpenTelemetry...");
             openTelemetry.close();
-            logger.atInfo().log("OpenTelemetry shutdown complete");
+            logger.at(Level.INFO).log("OpenTelemetry shutdown complete");
         }
     }
 

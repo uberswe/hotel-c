@@ -27,6 +27,7 @@ import io.opentelemetry.api.trace.StatusCode;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.logging.Level;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -84,11 +85,11 @@ public class OpenTelemetryPlugin extends JavaPlugin {
         logger = getLogger();
 
         if (!config.isEnabled()) {
-            logger.atInfo().log("HOTEL C plugin is disabled in configuration");
+            logger.at(Level.INFO).log("HOTEL C plugin is disabled in configuration");
             return;
         }
 
-        logger.atInfo().log("Setting up HOTEL C plugin...");
+        logger.at(Level.INFO).log("Setting up HOTEL C plugin...");
 
         // Initialize telemetry manager
         telemetryManager = new TelemetryManager(logger, config);
@@ -97,8 +98,8 @@ public class OpenTelemetryPlugin extends JavaPlugin {
         // Register event listeners
         registerEventListeners();
 
-        logger.atInfo().log("HOTEL C plugin setup complete");
-        logger.atInfo().log("Exporting to: %s", config.getOtlp().getEndpoint());
+        logger.at(Level.INFO).log("HOTEL C plugin setup complete");
+        logger.at(Level.INFO).log(String.format("Exporting to: %s", config.getOtlp().getEndpoint()));
     }
 
     @Override
@@ -107,16 +108,16 @@ public class OpenTelemetryPlugin extends JavaPlugin {
             return;
         }
 
-        logger.atInfo().log("HOTEL C plugin started");
-        logger.atInfo().log("Service: %s/%s", config.getServiceNamespace(), config.getServiceName());
-        logger.atInfo().log("Metrics enabled: %s", config.getMetrics().isEnabled());
-        logger.atInfo().log("Tracing enabled: %s", config.getTracing().isEnabled());
+        logger.at(Level.INFO).log("HOTEL C plugin started");
+        logger.at(Level.INFO).log(String.format("Service: %s/%s", config.getServiceNamespace(), config.getServiceName()));
+        logger.at(Level.INFO).log(String.format("Metrics enabled: %s", config.getMetrics().isEnabled()));
+        logger.at(Level.INFO).log(String.format("Tracing enabled: %s", config.getTracing().isEnabled()));
     }
 
     @Override
     protected void shutdown() {
         if (logger != null) {
-            logger.atInfo().log("Shutting down HOTEL C plugin...");
+            logger.at(Level.INFO).log("Shutting down HOTEL C plugin...");
         }
 
         // End any active player session spans
@@ -138,7 +139,7 @@ public class OpenTelemetryPlugin extends JavaPlugin {
         }
 
         if (logger != null) {
-            logger.atInfo().log("HOTEL C plugin shutdown complete");
+            logger.at(Level.INFO).log("HOTEL C plugin shutdown complete");
         }
     }
 
@@ -183,27 +184,27 @@ public class OpenTelemetryPlugin extends JavaPlugin {
         if (config.getMetrics().getServerMetrics().isEnabled()) {
             eventRegistry.register(EventPriority.NORMAL, BootEvent.class, this::onServerBoot);
             eventRegistry.register(EventPriority.NORMAL, ShutdownEvent.class, this::onServerShutdown);
-            logger.atInfo().log("Registered server event listeners");
+            logger.at(Level.INFO).log("Registered server event listeners");
         }
 
         // Player events
         if (config.getMetrics().getPlayerMetrics().isEnabled()) {
             eventRegistry.register(EventPriority.NORMAL, PlayerConnectEvent.class, this::onPlayerConnect);
             eventRegistry.register(EventPriority.NORMAL, PlayerDisconnectEvent.class, this::onPlayerDisconnect);
-            logger.atInfo().log("Registered player event listeners");
+            logger.at(Level.INFO).log("Registered player event listeners");
         }
 
         // World events - use registerGlobal for keyed events to listen across all worlds
         if (config.getMetrics().getWorldMetrics().isEnabled()) {
             eventRegistry.registerGlobal(EventPriority.NORMAL, AddWorldEvent.class, this::onWorldAdd);
             eventRegistry.registerGlobal(EventPriority.NORMAL, RemoveWorldEvent.class, this::onWorldRemove);
-            logger.atInfo().log("Registered world event listeners");
+            logger.at(Level.INFO).log("Registered world event listeners");
         }
 
         // PlayerReadyEvent - fired when player is fully loaded and ready (keyed event)
         if (config.getMetrics().getPlayerMetrics().isEnabled()) {
             eventRegistry.registerGlobal(EventPriority.NORMAL, PlayerReadyEvent.class, this::onPlayerReady);
-            logger.atInfo().log("Registered PlayerReadyEvent listener");
+            logger.at(Level.INFO).log("Registered PlayerReadyEvent listener");
         }
 
         // Block events - ECS event systems registered with the entity store
@@ -212,20 +213,20 @@ public class OpenTelemetryPlugin extends JavaPlugin {
 
             if (config.getMetrics().getBlockMetrics().isTrackPlacement()) {
                 entityStoreRegistry.registerSystem(new BlockPlaceEventSystem(telemetryManager));
-                logger.atInfo().log("Registered BlockPlaceEventSystem");
+                logger.at(Level.INFO).log("Registered BlockPlaceEventSystem");
             }
 
             if (config.getMetrics().getBlockMetrics().isTrackBreaking()) {
                 entityStoreRegistry.registerSystem(new BlockBreakEventSystem(telemetryManager));
-                logger.atInfo().log("Registered BlockBreakEventSystem");
+                logger.at(Level.INFO).log("Registered BlockBreakEventSystem");
             }
 
             if (config.getMetrics().getBlockMetrics().isTrackInteractions()) {
                 entityStoreRegistry.registerSystem(new BlockUseEventSystem(telemetryManager));
-                logger.atInfo().log("Registered BlockUseEventSystem");
+                logger.at(Level.INFO).log("Registered BlockUseEventSystem");
             }
 
-            logger.atInfo().log("Registered block ECS event systems");
+            logger.at(Level.INFO).log("Registered block ECS event systems");
         }
     }
 
@@ -240,9 +241,9 @@ public class OpenTelemetryPlugin extends JavaPlugin {
                         .startSpan();
                 serverLifecycleSpan.addEvent("server.started");
             }
-            logger.atInfo().log("HOTEL C: Server boot event recorded");
+            logger.at(Level.INFO).log("HOTEL C: Server boot event recorded");
         } catch (Exception e) {
-            logger.atWarning().withCause(e).log("Failed to record server boot event");
+            logger.at(Level.WARNING).withCause(e).log("Failed to record server boot event");
         }
     }
 
@@ -253,9 +254,9 @@ public class OpenTelemetryPlugin extends JavaPlugin {
                 serverLifecycleSpan.addEvent("server.shutdown",
                         Attributes.of(AttributeKey.longKey("server.uptime_ms"), uptime));
             }
-            logger.atInfo().log("HOTEL C: Server shutdown event recorded. Uptime: %ds", uptime / 1000);
+            logger.at(Level.INFO).log(String.format("HOTEL C: Server shutdown event recorded. Uptime: %ds", uptime / 1000));
         } catch (Exception e) {
-            logger.atWarning().withCause(e).log("Failed to record server shutdown event");
+            logger.at(Level.WARNING).withCause(e).log("Failed to record server shutdown event");
         }
     }
 
@@ -282,9 +283,9 @@ public class OpenTelemetryPlugin extends JavaPlugin {
                 playerSessionSpans.put(playerRef.getUuid(), sessionSpan);
             }
 
-            logger.atFine().log("Recorded player connect: %s", playerRef.getUsername());
+            logger.at(Level.FINE).log(String.format("Recorded player connect: %s", playerRef.getUsername()));
         } catch (Exception e) {
-            logger.atWarning().withCause(e).log("Failed to record player connect event");
+            logger.at(Level.WARNING).withCause(e).log("Failed to record player connect event");
         }
     }
 
@@ -306,9 +307,9 @@ public class OpenTelemetryPlugin extends JavaPlugin {
                 sessionSpan.end();
             }
 
-            logger.atFine().log("Recorded player disconnect: %s", playerRef.getUsername());
+            logger.at(Level.FINE).log(String.format("Recorded player disconnect: %s", playerRef.getUsername()));
         } catch (Exception e) {
-            logger.atWarning().withCause(e).log("Failed to record player disconnect event");
+            logger.at(Level.WARNING).withCause(e).log("Failed to record player disconnect event");
         }
     }
 
@@ -321,9 +322,9 @@ public class OpenTelemetryPlugin extends JavaPlugin {
             if (sessionSpan != null) {
                 sessionSpan.addEvent("player.ready");
             }
-            logger.atFine().log("Recorded player ready: %s", playerRef.getUsername());
+            logger.at(Level.FINE).log(String.format("Recorded player ready: %s", playerRef.getUsername()));
         } catch (Exception e) {
-            logger.atWarning().withCause(e).log("Failed to record player ready event");
+            logger.at(Level.WARNING).withCause(e).log("Failed to record player ready event");
         }
     }
 
@@ -343,9 +344,9 @@ public class OpenTelemetryPlugin extends JavaPlugin {
                         Attributes.of(WORLD_NAME, world.getName()));
             }
 
-            logger.atFine().log("Recorded world loaded: %s", world.getName());
+            logger.at(Level.FINE).log(String.format("Recorded world loaded: %s", world.getName()));
         } catch (Exception e) {
-            logger.atWarning().withCause(e).log("Failed to record world add event");
+            logger.at(Level.WARNING).withCause(e).log("Failed to record world add event");
         }
     }
 
@@ -364,9 +365,9 @@ public class OpenTelemetryPlugin extends JavaPlugin {
                         Attributes.of(WORLD_NAME, world.getName()));
             }
 
-            logger.atFine().log("Recorded world unloaded: %s", world.getName());
+            logger.at(Level.FINE).log(String.format("Recorded world unloaded: %s", world.getName()));
         } catch (Exception e) {
-            logger.atWarning().withCause(e).log("Failed to record world remove event");
+            logger.at(Level.WARNING).withCause(e).log("Failed to record world remove event");
         }
     }
 
