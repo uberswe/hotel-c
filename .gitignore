@@ -26,4 +26,5 @@ target/
 local.properties
 
 # Hytale Server API (needs to be downloaded separately)
+libs/HytaleServer.jar
 libs/hytale-server-api.jar
