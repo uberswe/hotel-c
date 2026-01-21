@@ -7,7 +7,6 @@ import com.uberswe.hytale.otel.ecs.BlockUseEventSystem;
 import com.uberswe.hytale.otel.telemetry.TelemetryManager;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.hypixel.hytale.event.EventPriority;
 import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.event.events.BootEvent;
 import com.hypixel.hytale.server.core.event.events.ShutdownEvent;
@@ -182,28 +181,28 @@ public class OpenTelemetryPlugin extends JavaPlugin {
 
         // Server events
         if (config.getMetrics().getServerMetrics().isEnabled()) {
-            eventRegistry.register(EventPriority.NORMAL, BootEvent.class, this::onServerBoot);
-            eventRegistry.register(EventPriority.NORMAL, ShutdownEvent.class, this::onServerShutdown);
+            eventRegistry.register(BootEvent.class, this::onServerBoot);
+            eventRegistry.register(ShutdownEvent.class, this::onServerShutdown);
             logger.at(Level.INFO).log("Registered server event listeners");
         }
 
         // Player events
         if (config.getMetrics().getPlayerMetrics().isEnabled()) {
-            eventRegistry.register(EventPriority.NORMAL, PlayerConnectEvent.class, this::onPlayerConnect);
-            eventRegistry.register(EventPriority.NORMAL, PlayerDisconnectEvent.class, this::onPlayerDisconnect);
+            eventRegistry.register(PlayerConnectEvent.class, this::onPlayerConnect);
+            eventRegistry.register(PlayerDisconnectEvent.class, this::onPlayerDisconnect);
             logger.at(Level.INFO).log("Registered player event listeners");
         }
 
         // World events - use registerGlobal for keyed events to listen across all worlds
         if (config.getMetrics().getWorldMetrics().isEnabled()) {
-            eventRegistry.registerGlobal(EventPriority.NORMAL, AddWorldEvent.class, this::onWorldAdd);
-            eventRegistry.registerGlobal(EventPriority.NORMAL, RemoveWorldEvent.class, this::onWorldRemove);
+            eventRegistry.registerGlobal(AddWorldEvent.class, this::onWorldAdd);
+            eventRegistry.registerGlobal(RemoveWorldEvent.class, this::onWorldRemove);
             logger.at(Level.INFO).log("Registered world event listeners");
         }
 
         // PlayerReadyEvent - fired when player is fully loaded and ready (keyed event)
         if (config.getMetrics().getPlayerMetrics().isEnabled()) {
-            eventRegistry.registerGlobal(EventPriority.NORMAL, PlayerReadyEvent.class, this::onPlayerReady);
+            eventRegistry.registerGlobal(PlayerReadyEvent.class, this::onPlayerReady);
             logger.at(Level.INFO).log("Registered PlayerReadyEvent listener");
         }
 
