@@ -20,7 +20,7 @@ val otelInstrumentationVersion = "2.10.0"
 
 dependencies {
     // Hytale Server API - provided at runtime by the server
-    compileOnly(files("../hytaleServer/server-files/Server/HytaleServer.jar"))
+    compileOnly(files("libs/HytaleServer.jar"))
 
     // OpenTelemetry API
     implementation("io.opentelemetry:opentelemetry-api:$otelVersion")
