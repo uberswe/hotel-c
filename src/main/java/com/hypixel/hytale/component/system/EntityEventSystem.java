@@ -7,8 +7,9 @@ import com.hypixel.hytale.component.query.Query;
 
 /**
  * Stub class for Hytale EntityEventSystem.
+ * Based on actual Hytale server API from SimpleClaims analysis.
  */
-public abstract class EntityEventSystem<S, E> {
+public abstract class EntityEventSystem<S, E> implements ISystem {
 
     protected EntityEventSystem(Class<E> eventClass) {
     }
