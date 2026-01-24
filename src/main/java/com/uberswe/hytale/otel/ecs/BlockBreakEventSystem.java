@@ -29,7 +29,8 @@ public class BlockBreakEventSystem extends EntityEventSystem<EntityStore, BreakB
 
     @Override
     public Query<EntityStore> getQuery() {
-        return Query.any();
+        // Return null - getQuery is @Nullable per SimpleClaims analysis
+        return null;
     }
 
     @Override
