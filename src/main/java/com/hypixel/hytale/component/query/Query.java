@@ -1,11 +1,12 @@
 package com.hypixel.hytale.component.query;
 
 /**
- * Stub class for Hytale Query.
+ * Stub interface for Hytale Query.
+ * Based on actual Hytale server API from SimpleClaims analysis.
  */
-public class Query<T> {
+public interface Query<T> {
 
-    public static <T> Query<T> any() {
-        return new Query<>();
+    static <T> Query<T> any() {
+        return new Query<T>() {};
     }
 }
